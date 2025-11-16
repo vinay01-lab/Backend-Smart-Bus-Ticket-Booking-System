@@ -22,12 +22,16 @@ import authRoute from "./routes/auth.js";
 dotenv.config();
 
 const app = express();
-app.use(cors({origin: "*"}));
+app.use(cors());
 app.use(express.json());
 
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: { origin: "*" },
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: { 
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
 });
 
 app.use("/api/bus", busRouter);
@@ -46,18 +50,20 @@ app.use("/api/auth", userAuth);
 app.use("/api/auth", authRoute);
 
 io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
-  socket.on("disconnect", () => {
-    // optional cleanup
+  console.log("Client connected:", socket.id);
+
+  socket.on("seat_update", (data) => {
+    io.emit("seat_update", data);
+  });
+
+  socket.on("booking_update", (data) => {
+    io.emit("booking_update", data);
+  });
+
+  socket.on("bus_location_update", (data) => {
+    io.emit("bus_location_update", data);
   });
 });
-
-app.set("io", io);
-
-app.get("/", (req, res) => {
-  res.send("Backend running!");
-});
-
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
