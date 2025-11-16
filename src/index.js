@@ -1,5 +1,6 @@
 import express from "express";
 import http from "http";
+import { createServer } from "http";
 import cors from "cors";
 import { Server } from "socket.io";
 import dotenv from "dotenv";
@@ -16,25 +17,25 @@ import path from "path";
 import busTrackingRoute from "./routes/busTracking.js";
 import reviewsRouter from "./routes/reviews.js";
 import userAuth from "./routes/userAuth.js";
+import authRoute from "./routes/auth.js";
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({origin: "*"}));
 app.use(express.json());
 
-const server = http.createServer(app);
-
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
-    methods: ["GET","POST"]
-  }
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: { origin: "*" },
 });
 
 app.use("/api/bus", busRouter);
 app.use("/api/seats", seatRouter);
-app.use("/api/booking", bookingRouter);
+app.use("/api/booking", (req, res, next) => {
+  req.io = io;  // attach socket.io
+  next();
+}, bookingRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/trips", tripsRouter);
 app.use("/api/admin/stats", adminStatsRouter);
@@ -42,6 +43,7 @@ app.use("/api/admin", adminAuth);
 app.use("/api/bus-tracking", busTrackingRoute(io));
 app.use("/api/reviews", reviewsRouter);
 app.use("/api/auth", userAuth);
+app.use("/api/auth", authRoute);
 
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
